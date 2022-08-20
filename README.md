@@ -1,3 +1,4 @@
+https://explorer.testnet.near.org/accounts/ngoducvu123.testnet
 # Voting Contract
 File wasm được build ở target folder
 The purpose of this contract is solely for validators to vote on whether to unlock

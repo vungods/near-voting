@@ -1,0 +1,2 @@
+cargo:rustc-env=TYPENUM_BUILD_CONSTS=c:\Users\Vungo\Downloads\Blockchain_code\near-core-folk\core-contracts\voting\target\debug\build\typenum-9ab17e726653dbf1\out\consts.rs
+cargo:rustc-env=TYPENUM_BUILD_OP=c:\Users\Vungo\Downloads\Blockchain_code\near-core-folk\core-contracts\voting\target\debug\build\typenum-9ab17e726653dbf1\out\op.rs

@@ -1,0 +1,342 @@
+- .tolist()
+- .groupby().apply(lambda x: x / x.sum())
+- enumerate(): tác index và value
+names = ['Bob', 'Alice', 'Guido']
+for index, value in enumerate(names):
+    print(f'{index}: {value}')
+========================================================================
+				LAB 1
+( chúng ta nên bán xe đã qua sử dụng với giá bao nhiêu)
+
+df.isnull().sum()
+df.loc['index',['colname1','colname2']
+df.loc[df['fuel-type']=='gas', 'length':'height']
+df.iloc[0:6,7:]
+df.dtypes: kiếm tra kiểu dữ liệu
+df.astype('Int'): ép kiểu
+
+df['price']=df['price'].replace('?', np.nan)
+df[(df['price']=='.')|(df['price']=='?') | (df['price']=='')]
+
+df = df.iloc[:,::-1]: đảo ngược các feature trong data frame
+
+#chèn  thêm 1  sample   vào vị trí cuối df
+sub=df.iloc[[0]]
+df.append(sub, ignore_index=True)
+
+# Dealing  with  missing data
+df.dropnan(axis=0,how='any', inplace =  True)
+	- axis = 0 là xóa row, =1 là xóa col
+	- how = 'any' nếu có giá trị NA thì xóa, 'all' thì cả row hoặc col là NA thì mới xóa
+
+df.isna: indicate missing values
+df.notna: indicate existing (non-missing) value
+df.fillna:replace missing value
+Series.dropna: Drop missing value
+Index.dropna: Drop missing indices
+	- df.dropna(subset = ['price'], axis = 0, inplace = True)
+# Data Formatting (ex: NY -> New York)
+df.rename(columns = {"city_mpg":"city-L/100km"}, inplace=True):đổi tên col
+
+========================================================================
+				LAB 2
+	(Tiền xử lý dữ liệu liên quan để phục vụ phân tích)
+
+df.replace(to_replace=["?","??",".","","_","Na","NULL","null","not","Not" ], value=np.nan)
+
+# Sử dụng Nearest neighbors để điền các giá trị bị khuyết
+from sklearn.inpute import KNNImputer
+KNN = KNNImputer(n_neighbors=3)
+non_object_df = df.select_dtype(exclude=['object']): lấy giá trị numberic
+impute_data = KNN.fit_transform(non_object_df)
+new_data = pd.DataFrame(impute_data, columns = non_object_df.columns)
+
+# Tạo các bin là ['Low', 'Medium', 'High'] cho “price”
+
+bins = np.linspace(min(df['horsepower']-1), max(df['horsepower']), 4)
+label = ['low', 'medium', 'high']
+df['horsepower-bin'] = pd.cut(df['horsepower'], bins, labels = label, include_lowest = True)
+========================================================================
+				LAB 3: EDA
+	(Những đặc điểm nào ảnh hưởng nhất đến giá xe)
+
+df.isnull().sum()
+
+# Hàm value_counts() dùng để tóm tắt dữ liệu phân loại
+pd.DataFrame(df['body-style'].value_counts())
+
+# boxplot
+sns.boxplot(x='body-style', y='price', data=df, showmeans=True)
+plt.title('Boxplot of Body Style vs Price')
+plt.show()
+
+==========Tìm các biến ảnh hưởng đến giá xe====================
+def CalculatePearsonCoefAndPvalue(cols):
+    dictionary = {}
+    for col in cols:
+        pearson_coef, p_value = stats.pearsonr(df[col], df['price'])
+        dictionary[col] = pearson_coef, p_value
+    return dictionary
+
+#Pearson chỉ tính toán trên biến munberical
+numberical_var = list(df.describe().columns)
+numberical_var.remove('price') #Xóa đi biến 'price' vì không cần thiết
+Pearsons = CalculatePearsonCoefAndPvalue(numberical_var)
+
+pearson_df = pd.DataFrame(data=Pearsons, index=['Pearson_coef', 'p_value'] )
+pearson_df = pearson_df.T
+
+pearson_df_sorted = pearson_df.sort_values(['Pearson_coef','p_value'], ascending = [False, False])
+
+#Lấy giá trị có ảnh hưởng là lớn hơn 0.3 và bé hơn -0.3
+pearson_influence_df = pearson_df_sorted[(pearson_df_sorted['Pearson_coef']>=0.3)
+---------------------------------------------------------------------
+# Tạo bảng pivot thể hiện trung bình giá, với index dòng là 'drive-wheels', index cột là 'body-style'.
+
+df_pivot = df_group_mean.pivot(index='drive-wheels', columns='body-style')
+plt.pcolor(df_pivot, cmap='RdBu')
+plt.colorbar()
+plt.title('Heatmap Pivot')
+plt.show()
+====================================================================
+				LAB 4: MODEL DEVELOPMENT
+	(Chúng ta xác định giá hợp lý cho xe đã qua sử dụng ntn)
+- vận dụng hồi quy tuyến tính đơn và đa biến
+- biết đánh giá mô hình dùng trực quan
+- vận dụng hồi quy đa thức và Pipelines
+- Áp dụng thang đo R-squared và MSE dùng để đánh giá tập mẫu
+- phân tích dự đoán và ra quyết định
+
+y = b0 +b1X
+y: là biến độc lập
+x: là biến phụ thuộc
+---------------------------------------------------------------
+# simple Linear Regression
+from sklearn.linear_model import LinearRegression
+lm=LinearRegression()
+X = df[['highway-mpg']]
+Y = df['price']
+lm.fit(X,Y)
+Y_pred = lm.predict(X)
+
+lm.intercept_ : xuất B0
+lm.coef_ : xuất B1
+-------------------------------------------------------------
+# Multiple Linear Regression(Y = b0 + b1X1 + b2X2 + b3X3)
+from sklearn.linear_model import LinearRegression
+lm=LinearRegression()
+X = df[['highway-mpg', 'horsepower', 'curb-weight', 'engine-size']]
+Y = df['price']
+lm.fit(X,Y)
+Y_pred = lm.predict(X)
+
+lm.intercept_ : xuất B0
+lm.coef_ : xuất b1, b2, b3, b4
+------------------------------------------------------------
+# TRỰC QUAN
+# Regression plot
+import seaborn as sns
+sns.regplot(x = "highway-mpg", y= "price", data=df)
+
+# Residual plot
+import seaborn as sns
+sns.residplot(x = "highway-mpg", y= "price", data=df)
+
+# Distribution plots
+import seaborn as sns
+ax1 = sns.distplot(df['price'], hist=False, color="r", label="actual Value")
+sns.distplot(Y_pred, hist=False, color="b", label="Fitted Values", ax=ax1)
+------------------------------------------------------------
+# POLYNOMIAL REGRESSION(Y = b0 + b1X1 + b2X1^2 + b3X1^3)
+from sklearn.preprocessing import PolynomialFeatures
+pr = PolynomialFeatures(degree=2)
+X_poly = fit_transform([df[['horsepower', 'curb-weight']])
+X_poly.shape
+
+from sklearn.linear_model import LinearRegression
+lm = LinearRegression()
+lm.fit(X_poly, df['price'])
+y_pred = lm.predict(X)
+
+lm.intercept_ : xuất B0
+lm.coef_ : xuất a, b, a^2, ab, b^2
+-----------------------------------------------------------
+# nên Normalize cho Fearture
+
+from sklearn.preprocessing import StandardScaler
+SCALE = StandardScaler()
+SCALE.fit(x_data[['horsepower', 'highway-mpg']])
+----------------------------------------------------------
+# Pipeline
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+Input = [('scale', StandardScaler()),
+	   ('polynomial', PolynomialFeatures(include_bias=False)),
+	   ('model', LinearRegression())]
+pipe = PipeLine(Input)
+pipe.fit(Z,y)
+ypipe = pipe.predict(Z)
+---------------------------------------------------------
+# MSE (sai số bình phương trung bình) 
+from sklearn.metrics import mean_squared_error
+mean_squared_error(df['price'], y_pred)
+--------------------------------------------------------
+# R-squared (hệ số xác định) xác định độ phù hợp của dữ liệu so với đường hồi quy đã đc fit
+R^2 = (1 - MSE of regression line/ MSE of the average of the data)
+=> nếu R^2 tiến về 1 thì regression line là tốt)
+
+from sklearn.metrics import r2_score
+r2_score(y, y_pred)
+=======================================================================
+			LAB 5: ĐÁNH GIÁ MODEL
+# Train test split
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size = 0.3, random_state = 0)
+
+# cross_val_score()
+from sklearn.model_selection import cross_val_score
+scores = cross_val_score(lr, x_data, y_data, cv=3)
+# cross_val_predict()
+from sklearn.model_selection import cross_val_predict
+y_hat = cross_val_predict(lr2e, x_data, y_data, cv = 3)
+
+======================================================================
+			LAB 6: TRỰC QUAN DỮ LIỆU
+# phương thức plot trong DataFrame
+
+# nhớ xử lý index, column
+df = df.set_index('Country')
+---------------------------------------------------------
+# LINE PLOT
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+mpl.style.use(['ggplot'])
+
+haiti = df.loc['Haiti', 1990:2013]
+haiti.plot(kind = 'line')
+---------------------------------------------------------
+# Area plot ( thường được dùng để biểu diễn tổng số tích lũy cummulate totals)
+df['total'] = df.sum(axis=1)
+
+# Câu 7. Tạo plot mô tả xu hướng nhập cư của năm quốc gia có tỷ lệ nhập cư cao nhất vào Canada từ năm 1980 đến 2013
+
+df.sort_values(['Total'], ascending=False, axis=0, inplace = True)
+df_top5 = df.head()
+df_top5 = df_top5.loc[:,1980:2013].transpose()
+
+df_top5.plot(kind = 'area', stacked = False, figsize = (20,10))
+plt.title('Xu hướng của 5 quốc gia có lượng di cư lớn nhất Canada')
+plt.ylabel("Số lượng")
+plt.xlabel("Năm")
+plt.show()
+-----------------------------------------------------------
+# Histogram
+count, bin_edges = np.histogram(df[2010])
+df[2010].plot(kind='hist', figsize=(9,5), sticks = bin_edges)
+----------------------------------------------------------
+# Bar Chart (so sánh các giá trị của biển)
+df_viet = df.loc['Viet Nam', 1980:2013)
+df_viet.plot(kind='bar', figsize=(10,6))
+OR
+df_viet.plot(kind='barh', figsize=(10,6))
+-----------------------------------------------------------
+# Pie Chart
+df_continents = df.groupby('Continent', axis=0).sum()
+df_continents['Total'].plot(kind='pie', figsize=(10,10))
+----------------------------------------------------------
+# boxplot (thể hiện sự phân bố)
+df7 = df.loc[['Viet Nam','Sri Lanka','France','Romania','Pakistan'], 1980:2013].transpose()
+df7.plot(kind = 'box', figsize=(6,6))
+----------------------------------------------------------
+# Scatter Plot
+df_sum = pd.DataFrame(df.loc[:, 1980:2013]).sum(axis=0)
+df_sum.reset_index(inplace = True)
+df_sem.columns = ['year', 'total']
+
+df_sum.plot(kind='scatter', x='year', y = 'total', figsize=(10,6), color='red')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
